@@ -40,25 +40,20 @@ namespace Microsoft.Azure.Cosmos
         internal const double Percentile999 = 99.9;
 
         internal readonly ClientTelemetryInfo clientTelemetryInfo;
-        internal readonly bool isClientTelemetryEnabled;
         internal readonly CosmosHttpClient httpClient;
 
-        public ClientTelemetry(bool acceleratedNetworking,
+        public ClientTelemetry(bool? acceleratedNetworking,
                                string clientId,
                                string processId,
                                string userAgent,
                                ConnectionMode connectionMode,
                                string globalDatabaseAccountName,
-                               string applicationRegion,
-                               string hostEnvInfo,
-                               CosmosHttpClient httpClient,
-                               bool isClientTelemetryEnabled)
+                               CosmosHttpClient httpClient)
         {
             this.clientTelemetryInfo = new ClientTelemetryInfo(clientId, processId, userAgent, connectionMode,
-                globalDatabaseAccountName, applicationRegion, hostEnvInfo, acceleratedNetworking);
+                globalDatabaseAccountName, acceleratedNetworking);
 
             this.httpClient = httpClient;
-            this.isClientTelemetryEnabled = isClientTelemetryEnabled;
 
         }
 
@@ -85,6 +80,10 @@ namespace Microsoft.Azure.Cosmos
                     trace: NoOpTrace.Singleton,
                     cancellationToken: default);
                 azMetadata = await ProcessResponseAsync(httpResponseMessage);
+
+                this.clientTelemetryInfo.ApplicationRegion = azMetadata.Location;
+                this.clientTelemetryInfo.HostEnvInfo = String.Concat(azMetadata.OSType, "|", azMetadata.SKU,
+                    "|", azMetadata.VMSize, "|", azMetadata.AzEnvironment);
             }
             catch (Exception e)
             {
@@ -106,7 +105,7 @@ namespace Microsoft.Azure.Cosmos
                             string databaseId,
                             OperationType operationType,
                             ResourceType resourceType,
-                            Microsoft.Azure.Documents.ConsistencyLevel consistencyLevel,
+                            ConsistencyLevel? consistencyLevel,
                             double requestCharge,
                             TimeSpan latency)
         {
@@ -116,16 +115,16 @@ namespace Microsoft.Azure.Cosmos
                     resourceType, consistencyLevel, RequestLatencyName, RequestLatencyUnit);
 
             this.clientTelemetryInfo
-                .operationInfoMap
-                .TryGetValue(reportPayloadLatency, out LongHistogram latencyHistogram);
+                .OperationInfoMap
+                .TryGetValue(reportPayloadLatency, out LongConcurrentHistogram latencyHistogram);
             if (latencyHistogram == null)
             {
                 latencyHistogram = statusCode.IsSuccess()
-                    ? new LongHistogram(RequestLatencyMaxMicroSec, RequestLatencySuccessPrecision)
-                    : new LongHistogram(RequestLatencyMaxMicroSec, RequestLatencyFailurePrecision);
+                    ? new LongConcurrentHistogram(1, RequestLatencyMaxMicroSec, RequestLatencySuccessPrecision)
+                    : new LongConcurrentHistogram(1, RequestLatencyMaxMicroSec, RequestLatencyFailurePrecision);
             }
             latencyHistogram.RecordValue((long)latency.TotalMilliseconds * 1000);
-            this.clientTelemetryInfo.operationInfoMap[reportPayloadLatency] = latencyHistogram;
+            this.clientTelemetryInfo.OperationInfoMap[reportPayloadLatency] = latencyHistogram;
 
             ReportPayload reportPayloadRequestCharge =
                this.CreateReportPayload(
@@ -133,15 +132,15 @@ namespace Microsoft.Azure.Cosmos
                    resourceType, consistencyLevel, RequestChargeName, RequestChargeUnit);
 
             this.clientTelemetryInfo
-                .operationInfoMap
-                .TryGetValue(reportPayloadLatency, out LongHistogram requestChargeHistogram);
+                .OperationInfoMap
+                .TryGetValue(reportPayloadLatency, out LongConcurrentHistogram requestChargeHistogram);
 
             if (requestChargeHistogram == null)
             {
-                requestChargeHistogram = new LongHistogram(RequestChargeMax, RequestChargePrecision);
+                requestChargeHistogram = new LongConcurrentHistogram(1, RequestChargeMax, RequestChargePrecision);
             }
             requestChargeHistogram.RecordValue((long)requestCharge);
-            this.clientTelemetryInfo.operationInfoMap[reportPayloadRequestCharge] = requestChargeHistogram;
+            this.clientTelemetryInfo.OperationInfoMap[reportPayloadRequestCharge] = requestChargeHistogram;
 
         }
 
@@ -153,27 +152,26 @@ namespace Microsoft.Azure.Cosmos
                             string databaseId,
                             OperationType operationType,
                             ResourceType resourceType,
-                            Microsoft.Azure.Documents.ConsistencyLevel consistencyLevel,
+                            ConsistencyLevel? consistencyLevel,
                             double requestCharge)
         {
-            Console.WriteLine(requestCharge);
             ReportPayload reportPayloadLatency =
                 this.CreateReportPayload(
                     client, cosmosDiagnostics, statusCode, objectSize, containerId, databaseId, operationType,
                     resourceType, consistencyLevel, RequestLatencyName, RequestLatencyUnit);
 
             this.clientTelemetryInfo
-                .operationInfoMap
-                .TryGetValue(reportPayloadLatency, out LongHistogram latencyHistogram);
+                .OperationInfoMap
+                .TryGetValue(reportPayloadLatency, out LongConcurrentHistogram latencyHistogram);
 
             if (latencyHistogram == null)
             {
                 latencyHistogram = statusCode.IsSuccess()
-                    ? new LongHistogram(RequestLatencyMaxMicroSec, RequestLatencySuccessPrecision)
-                    : new LongHistogram(RequestLatencyMaxMicroSec, RequestLatencyFailurePrecision);
+                    ? new LongConcurrentHistogram(1, RequestLatencyMaxMicroSec, RequestLatencySuccessPrecision)
+                    : new LongConcurrentHistogram(1, RequestLatencyMaxMicroSec, RequestLatencyFailurePrecision);
             }
             latencyHistogram.RecordValue((long)cosmosDiagnostics.GetClientElapsedTime().TotalMilliseconds * 1000);
-            this.clientTelemetryInfo.operationInfoMap[reportPayloadLatency] = latencyHistogram;
+            this.clientTelemetryInfo.OperationInfoMap[reportPayloadLatency] = latencyHistogram;
 
             ReportPayload reportPayloadRequestCharge =
                this.CreateReportPayload(
@@ -181,15 +179,15 @@ namespace Microsoft.Azure.Cosmos
                    resourceType, consistencyLevel, RequestChargeName, RequestChargeUnit);
 
             this.clientTelemetryInfo
-                .operationInfoMap
-                .TryGetValue(reportPayloadLatency, out LongHistogram requestChargeHistogram);
+                .OperationInfoMap
+                .TryGetValue(reportPayloadLatency, out LongConcurrentHistogram requestChargeHistogram);
 
             if (requestChargeHistogram == null)
             {
-                requestChargeHistogram = new LongHistogram(RequestChargeMax, RequestChargePrecision);
+                requestChargeHistogram = new LongConcurrentHistogram(1, RequestChargeMax, RequestChargePrecision);
             }
             requestChargeHistogram.RecordValue((long)requestCharge);
-            this.clientTelemetryInfo.operationInfoMap[reportPayloadRequestCharge] = requestChargeHistogram;
+            this.clientTelemetryInfo.OperationInfoMap[reportPayloadRequestCharge] = requestChargeHistogram;
         }
 
         internal ReportPayload CreateReportPayload(CosmosClient client,
@@ -200,7 +198,7 @@ namespace Microsoft.Azure.Cosmos
                                                   string databaseId,
                                                   OperationType operationType,
                                                   ResourceType resourceType,
-                                                  Microsoft.Azure.Documents.ConsistencyLevel consistencyLevel,
+                                                  ConsistencyLevel? consistencyLevel,
                                                   string metricsName,
                                                   string unitName)
         {
@@ -211,18 +209,18 @@ namespace Microsoft.Azure.Cosmos
 
             ReportPayload reportPayload = new ReportPayload(metricsName, unitName)
             {
-                regionsContacted = regionUris.ToString(),
-                consistency = consistencyLevel.ToString() == null ? client.ClientContext.DocumentClient.ConsistencyLevel : consistencyLevel,
-                databaseName = databaseId,
-                containerName = containerId,
-                operation = operationType,
-                resource = resourceType,
-                statusCode = (int)statusCode
+                RegionsContacted = regionUris.ToString(),
+                Consistency = consistencyLevel ?? client.ClientOptions.ConsistencyLevel.GetValueOrDefault(),
+                DatabaseName = databaseId,
+                ContainerName = containerId,
+                Operation = operationType,
+                Resource = resourceType,
+                StatusCode = (int)statusCode
             };
 
             if (objectSize != 0)
             {
-                reportPayload.greaterThan1Kb = objectSize > OneKbToBytes;
+                reportPayload.GreaterThan1Kb = objectSize > OneKbToBytes;
             }
 
             return reportPayload;
@@ -234,39 +232,41 @@ namespace Microsoft.Azure.Cosmos
                                               string databaseId,
                                               OperationType operationType,
                                               ResourceType resourceType,
-                                              Microsoft.Azure.Documents.ConsistencyLevel consistencyLevel,
+                                              ConsistencyLevel? consistencyLevel,
                                               string metricsName,
                                               string unitName)
         {
             return new ReportPayload(metricsName, unitName) 
             { 
-                consistency = consistencyLevel.ToString() == null ? client.ClientContext.DocumentClient.ConsistencyLevel : consistencyLevel,
-                databaseName = databaseId,
-                containerName = containerId,
-                operation = operationType,
-                resource = resourceType,
-                statusCode = (int)statusCode
+                Consistency = consistencyLevel ?? client.ClientOptions.ConsistencyLevel.GetValueOrDefault(),
+                DatabaseName = databaseId,
+                ContainerName = containerId,
+                Operation = operationType,
+                Resource = resourceType,
+                StatusCode = (int)statusCode
             };
         }
 
-        internal void Read()
+        internal ClientTelemetryInfo Read()
         {
-            foreach (KeyValuePair<ReportPayload, LongHistogram> entry in this.clientTelemetryInfo.cacheRefreshInfoMap)
+            foreach (KeyValuePair<ReportPayload, LongConcurrentHistogram> entry in this.clientTelemetryInfo.CacheRefreshInfoMap)
             {
                 this.FillMetricsInfo(entry.Key, entry.Value);
             }
-            foreach (KeyValuePair<ReportPayload, LongHistogram> entry in this.clientTelemetryInfo.operationInfoMap)
+            foreach (KeyValuePair<ReportPayload, LongConcurrentHistogram> entry in this.clientTelemetryInfo.OperationInfoMap)
             {
                 this.FillMetricsInfo(entry.Key, entry.Value);
             }
+            return this.clientTelemetryInfo;
         }
 
-        private void FillMetricsInfo(ReportPayload payload, LongHistogram histogram)
+        private void FillMetricsInfo(ReportPayload payload, LongConcurrentHistogram histogram)
         {
-            LongHistogram copyHistogram = (LongHistogram)histogram.Copy();
-            payload.metricInfo.count = copyHistogram.TotalCount;
-            payload.metricInfo.max = copyHistogram.GetMaxValue();
-            payload.metricInfo.mean = copyHistogram.GetMean();
+            LongConcurrentHistogram copyHistogram = (LongConcurrentHistogram)histogram.Copy();
+            payload.MetricInfo.Count = copyHistogram.TotalCount;
+            payload.MetricInfo.Max = copyHistogram.GetMaxValue();
+            payload.MetricInfo.Min = copyHistogram.GetMinValue();
+            payload.MetricInfo.Mean = copyHistogram.GetMean();
             IDictionary<Double, Double> percentile = new Dictionary<Double, Double>
             {
                 { Percentile50,  copyHistogram.GetValueAtPercentile(Percentile50) },
@@ -275,13 +275,21 @@ namespace Microsoft.Azure.Cosmos
                 { Percentile99,  copyHistogram.GetValueAtPercentile(Percentile99) },
                 { Percentile999, copyHistogram.GetValueAtPercentile(Percentile999) }
             };
-            payload.metricInfo.percentiles = percentile;
+            payload.MetricInfo.Percentiles = percentile;
         }
 
         internal async Task<AzureVMMetadata> InitAsync()
         {
             //if (this.isClientTelemetryEnabled)
             return await this.LoadAzureVmMetaDataAsync();
+        }
+
+        internal void Reset()
+        {
+            this.clientTelemetryInfo.OperationInfoMap.Clear();
+            this.clientTelemetryInfo.SystemInfoMap.Clear();
+            this.clientTelemetryInfo.CacheRefreshInfoMap.Clear();
+
         }
 
     }

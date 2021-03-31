@@ -10,6 +10,7 @@ namespace Microsoft.Azure.Cosmos.Handlers
     using System.Globalization;
     using System.IO;
     using System.Net.Http;
+    using System.Runtime.InteropServices;
     using System.Threading;
     using System.Threading.Tasks;
     using Microsoft.Azure.Cosmos.Common;
@@ -275,7 +276,30 @@ namespace Microsoft.Azure.Cosmos.Handlers
                     }
 
                     requestEnricher?.Invoke(request);
-                    return await this.SendAsync(request, cancellationToken);
+
+                    ResponseMessage response = await this.SendAsync(request, cancellationToken);
+
+                    if (cosmosContainerCore != null && 
+                        cosmosContainerCore.ClientContext.ClientOptions.EnableClientTelemetry)
+                    {
+                        cosmosContainerCore
+                            .ClientContext
+                            .DocumentClient
+                            .clientTelemetry
+                            .Collect(
+                        this.client,
+                        response.Diagnostics,
+                        response.StatusCode,
+                        (int)(response.Content == null ? 0 : response.Content.Length),
+                        cosmosContainerCore.Database.Id,
+                        cosmosContainerCore.Id,
+                        request.OperationType,
+                        request.ResourceType,
+                        request.RequestOptions?.BaseConsistencyLevel.Value,
+                        request.Headers.RequestCharge);
+                    }
+
+                    return response;
                 }
                 finally
                 {

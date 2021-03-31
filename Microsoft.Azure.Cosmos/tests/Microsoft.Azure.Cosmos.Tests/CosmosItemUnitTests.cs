@@ -10,6 +10,7 @@ namespace Microsoft.Azure.Cosmos.Tests
     using System.Net;
     using System.Threading;
     using System.Threading.Tasks;
+    using Microsoft.Azure.Cosmos.CosmosElements;
     using Microsoft.Azure.Cosmos.Tracing;
     using Microsoft.Azure.Documents;
     using Microsoft.VisualStudio.TestTools.UnitTesting;
@@ -658,7 +659,7 @@ namespace Microsoft.Azure.Cosmos.Tests
         private (ContainerInternal, Mock<BatchAsyncContainerExecutor>) CreateMockBulkCosmosClientContext()
         {
             CosmosClientContext context = MockCosmosUtil.CreateMockCosmosClient(
-                builder => builder.WithBulkExecution(true)).ClientContext;
+                builder => builder.WithBulkExecution(true).WithTelemetryEnabled()).ClientContext;
             Mock<CosmosClientContext> mockContext = new Mock<CosmosClientContext>();
             mockContext.Setup(x => x.CreateLink(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
                 .Returns<string, string, string>((x, y, z) => context.CreateLink(x, y, z));
@@ -666,6 +667,14 @@ namespace Microsoft.Azure.Cosmos.Tests
             mockContext.Setup(x => x.ResponseFactory).Returns(context.ResponseFactory);
             mockContext.Setup(x => x.SerializerCore).Returns(context.SerializerCore);
             mockContext.Setup(x => x.DocumentClient).Returns(context.DocumentClient);
+
+            context.DocumentClient.clientTelemetry = new ClientTelemetry(acceleratedNetworking: null,
+                        clientId: Guid.NewGuid().ToString(),
+                        processId: System.Diagnostics.Process.GetCurrentProcess().ProcessName,
+                        userAgent: context.DocumentClient.ConnectionPolicy.UserAgentContainer.UserAgent,
+                        connectionMode: context.DocumentClient.ConnectionPolicy.ConnectionMode,
+                        globalDatabaseAccountName: "testAccount",
+                        httpClient: null);
 
             mockContext.Setup(x => x.OperationHelperAsync<ResponseMessage>(
                 It.IsAny<string>(),
@@ -781,7 +790,7 @@ namespace Microsoft.Azure.Cosmos.Tests
             });
 
             using CosmosClient client = MockCosmosUtil.CreateMockCosmosClient(
-                (builder) => builder.AddCustomHandlers(testHandler));
+                (builder) => builder.AddCustomHandlers(testHandler).WithTelemetryEnabled());
 
             Container container = client.GetDatabase("testdb")
                                         .GetContainer("testcontainer");
@@ -792,18 +801,27 @@ namespace Microsoft.Azure.Cosmos.Tests
             Assert.IsNotNull(itemResponse);
             Assert.AreEqual(httpStatusCode, itemResponse.StatusCode);
 
+            ClientTelemetryInfo telemetryInfo = client.ClientContext
+                .DocumentClient
+                .clientTelemetry
+                .clientTelemetryInfo;
+
+            Assert.AreEqual(telemetryInfo.OperationInfoMap.Count, 2);
+
             itemResponse = await container.ReadItemAsync<dynamic>(
                 partitionKey: partitionKey,
                 id: testItem.id,
                 requestOptions: requestOptions);
             Assert.IsNotNull(itemResponse);
             Assert.AreEqual(httpStatusCode, itemResponse.StatusCode);
+            Assert.AreEqual(telemetryInfo.OperationInfoMap.Count, 4);
 
             itemResponse = await container.UpsertItemAsync<dynamic>(
                 item: testItem,
                 requestOptions: requestOptions);
             Assert.IsNotNull(itemResponse);
             Assert.AreEqual(httpStatusCode, itemResponse.StatusCode);
+            Assert.AreEqual(telemetryInfo.OperationInfoMap.Count, 6);
 
             itemResponse = await container.ReplaceItemAsync<dynamic>(
                 id: testItem.id,
@@ -811,6 +829,7 @@ namespace Microsoft.Azure.Cosmos.Tests
                 requestOptions: requestOptions);
             Assert.IsNotNull(itemResponse);
             Assert.AreEqual(httpStatusCode, itemResponse.StatusCode);
+            Assert.AreEqual(telemetryInfo.OperationInfoMap.Count, 8);
 
             itemResponse = await container.DeleteItemAsync<dynamic>(
                 partitionKey: partitionKey,
@@ -820,6 +839,12 @@ namespace Microsoft.Azure.Cosmos.Tests
             Assert.AreEqual(httpStatusCode, itemResponse.StatusCode);
 
             Assert.AreEqual(5, testHandlerHitCount, "An operation did not make it to the handler");
+
+            Assert.AreEqual(telemetryInfo.OperationInfoMap.Count, 10);
+
+            client.ClientContext
+                .DocumentClient
+                .clientTelemetry.Reset();
 
             using (Stream itemStream = MockCosmosUtil.Serializer.ToStream<dynamic>(testItem))
             {
@@ -832,6 +857,7 @@ namespace Microsoft.Azure.Cosmos.Tests
                     Assert.AreEqual(httpStatusCode, streamResponse.StatusCode);
                 }
             }
+            Assert.AreEqual(telemetryInfo.OperationInfoMap.Count, 2);
 
             using (Stream itemStream = MockCosmosUtil.Serializer.ToStream<dynamic>(testItem))
             {
@@ -844,6 +870,7 @@ namespace Microsoft.Azure.Cosmos.Tests
                     Assert.AreEqual(httpStatusCode, streamResponse.StatusCode);
                 }
             }
+            Assert.AreEqual(telemetryInfo.OperationInfoMap.Count, 4);
 
             using (Stream itemStream = MockCosmosUtil.Serializer.ToStream<dynamic>(testItem))
             {
@@ -856,6 +883,7 @@ namespace Microsoft.Azure.Cosmos.Tests
                     Assert.AreEqual(httpStatusCode, streamResponse.StatusCode);
                 }
             }
+            Assert.AreEqual(telemetryInfo.OperationInfoMap.Count, 6);
 
             using (Stream itemStream = MockCosmosUtil.Serializer.ToStream<dynamic>(testItem))
             {
@@ -869,6 +897,7 @@ namespace Microsoft.Azure.Cosmos.Tests
                     Assert.AreEqual(httpStatusCode, streamResponse.StatusCode);
                 }
             }
+            Assert.AreEqual(telemetryInfo.OperationInfoMap.Count, 8);
 
             using (Stream itemStream = MockCosmosUtil.Serializer.ToStream<dynamic>(testItem))
             {
@@ -881,7 +910,7 @@ namespace Microsoft.Azure.Cosmos.Tests
                     Assert.AreEqual(httpStatusCode, streamResponse.StatusCode);
                 }
             }
-
+            Assert.AreEqual(telemetryInfo.OperationInfoMap.Count, 10);
             Assert.AreEqual(10, testHandlerHitCount, "A stream operation did not make it to the handler");
         }
 

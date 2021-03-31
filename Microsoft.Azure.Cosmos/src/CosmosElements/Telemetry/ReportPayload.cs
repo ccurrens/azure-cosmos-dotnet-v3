@@ -11,48 +11,48 @@ namespace Microsoft.Azure.Cosmos.CosmosElements.Telemetry
 
     internal class ReportPayload
     {
-        public string regionsContacted { get; set; }
-        public Boolean greaterThan1Kb { get; set; }
-        public ConsistencyLevel consistency { get; set; }
-        public string databaseName { get; set; }
-        public string containerName { get; set; }
-        public OperationType operation { get; set; }
-        public ResourceType resource { get; set; }
-        public int statusCode { get; set; }
-        public MetricInfo metricInfo { get; set; }
+        public string RegionsContacted { get; set; }
+        public Boolean GreaterThan1Kb { get; set; }
+        public Microsoft.Azure.Cosmos.ConsistencyLevel Consistency { get; set; }
+        public string DatabaseName { get; set; }
+        public string ContainerName { get; set; }
+        public OperationType Operation { get; set; }
+        public ResourceType Resource { get; set; }
+        public int StatusCode { get; set; }
+        public MetricInfo MetricInfo { get; set; }
         public ReportPayload(string metricInfoName, string unitName)
         {
-            this.metricInfo = new MetricInfo(metricInfoName, unitName);
+            this.MetricInfo = new MetricInfo(metricInfoName, unitName);
         }
 
         public override int GetHashCode()
         {
             int hash = 0;
-            hash = (hash * 397) ^ (this.regionsContacted == null ? 0 : this.regionsContacted.GetHashCode());
-            hash = (hash * 397) ^ (this.greaterThan1Kb.GetHashCode());
-            hash = (hash * 397) ^ (this.consistency.GetHashCode());
-            hash = (hash * 397) ^ (this.databaseName == null ? 0 : this.databaseName.GetHashCode());
-            hash = (hash * 397) ^ (this.containerName == null ? 0 : this.containerName.GetHashCode());
-            hash = (hash * 397) ^ (this.operation.GetHashCode());
-            hash = (hash * 397) ^ (this.resource.GetHashCode());
-            hash = (hash * 397) ^ (this.statusCode.GetHashCode());
-            hash = (hash * 397) ^ (this.metricInfo == null ? 0 : this.metricInfo.metricsName == null ? 0 :
-                this.metricInfo.metricsName.GetHashCode());
+            hash = (hash * 397) ^ (this.RegionsContacted == null ? 0 : this.RegionsContacted.GetHashCode());
+            hash = (hash * 397) ^ (this.GreaterThan1Kb.GetHashCode());
+            hash = (hash * 397) ^ (this.Consistency.GetHashCode());
+            hash = (hash * 397) ^ (this.DatabaseName == null ? 0 : this.DatabaseName.GetHashCode());
+            hash = (hash * 397) ^ (this.ContainerName == null ? 0 : this.ContainerName.GetHashCode());
+            hash = (hash * 397) ^ (this.Operation.GetHashCode());
+            hash = (hash * 397) ^ (this.Resource.GetHashCode());
+            hash = (hash * 397) ^ (this.StatusCode.GetHashCode());
+            hash = (hash * 397) ^ (this.MetricInfo == null ? 0 : this.MetricInfo.MetricsName == null ? 0 :
+                this.MetricInfo.MetricsName.GetHashCode());
             return hash;
         }
 
         public override bool Equals(object obj)
         {
             bool isequal = obj is ReportPayload payload &&
-                   this.regionsContacted != null && payload.regionsContacted != null && this.regionsContacted.Equals(payload.regionsContacted) &&
-                   this.greaterThan1Kb.Equals(payload.greaterThan1Kb) &&
-                   this.consistency.GetTypeCode().Equals(payload.consistency.GetTypeCode()) &&
-                   this.databaseName != null && payload.databaseName != null && this.databaseName.Equals(payload.databaseName) &&
-                   this.containerName != null && payload.containerName != null && this.containerName.Equals(payload.containerName) &&
-                   this.operation.GetTypeCode().Equals(payload.operation.GetTypeCode()) &&
-                   this.resource.GetTypeCode().Equals(payload.resource.GetTypeCode()) &&
-                   this.statusCode.GetTypeCode().Equals(payload.statusCode.GetTypeCode()) &&
-                   this.metricInfo != null && this.metricInfo.metricsName != null && payload.metricInfo != null && payload.metricInfo.metricsName != null && this.metricInfo.metricsName.Equals(payload.metricInfo.metricsName);
+                   this.RegionsContacted != null && payload.RegionsContacted != null && this.RegionsContacted.Equals(payload.RegionsContacted) &&
+                   this.GreaterThan1Kb.Equals(payload.GreaterThan1Kb) &&
+                   this.Consistency.GetTypeCode().Equals(payload.Consistency.GetTypeCode()) &&
+                   this.DatabaseName != null && payload.DatabaseName != null && this.DatabaseName.Equals(payload.DatabaseName) &&
+                   this.ContainerName != null && payload.ContainerName != null && this.ContainerName.Equals(payload.ContainerName) &&
+                   this.Operation.GetTypeCode().Equals(payload.Operation.GetTypeCode()) &&
+                   this.Resource.GetTypeCode().Equals(payload.Resource.GetTypeCode()) &&
+                   this.StatusCode.GetTypeCode().Equals(payload.StatusCode.GetTypeCode()) &&
+                   this.MetricInfo != null && this.MetricInfo.MetricsName != null && payload.MetricInfo != null && payload.MetricInfo.MetricsName != null && this.MetricInfo.MetricsName.Equals(payload.MetricInfo.MetricsName);
 
             return isequal;
         }

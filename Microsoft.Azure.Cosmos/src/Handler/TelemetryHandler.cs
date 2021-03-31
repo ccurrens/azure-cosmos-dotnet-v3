@@ -28,7 +28,7 @@ namespace Microsoft.Azure.Cosmos.Handlers
             CancellationToken cancellationToken)
         {
             ResponseMessage response = await base.SendAsync(request, cancellationToken);
-            if (this.client.DocumentClient.clientTelemetry != null)
+          /*  if (this.client.ClientOptions.EnableClientTelemetry)
             {
               this.client.DocumentClient.clientTelemetry.Collect(
               this.client,
@@ -41,7 +41,7 @@ namespace Microsoft.Azure.Cosmos.Handlers
               request.ResourceType,
               this.client.DocumentClient.ConsistencyLevel,
               request.Headers.RequestCharge);
-            }
+            }*/
            
             return response;
             

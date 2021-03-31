@@ -33,6 +33,16 @@ namespace HdrHistogram
         }
 
         /// <summary>
+        /// Get the highest recorded value level in the histogram
+        /// </summary>
+        /// <returns>the Max value recorded in the histogram</returns>
+        public static long GetMinValue(this HistogramBase histogram)
+        {
+            var min = histogram.RecordedValues().Select(hiv => hiv.ValueIteratedTo).FirstOrDefault();
+            return histogram.LowestEquivalentValue(min);
+        }
+
+        /// <summary>
         /// Get the computed mean value of all recorded values in the histogram
         /// </summary>
         /// <returns>the mean value (in value units) of the histogram data</returns>
